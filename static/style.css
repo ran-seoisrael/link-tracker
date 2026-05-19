@@ -10,7 +10,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; }
 .navbar { box-shadow: 0 2px 8px rgba(0,0,0,.15); background-color: #0d1b3e !important; }
 
 /* ── Table ───────────────────────────────────────────────────────────── */
-#linksTable thead th { font-size: .82rem; letter-spacing: .02em; white-space: nowrap; position: sticky; top: 0; z-index: 2; }
+#linksTable thead th { font-size: .82rem; letter-spacing: .02em; white-space: nowrap; }
 #linksTable tbody td { font-size: .88rem; }
 .url-cell { color: #0d6efd; font-size: .8rem; max-width: 200px; }
 .url-cell:hover { text-decoration: underline; }
@@ -21,6 +21,10 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; }
 
 /* ── LTR inputs (URLs) ───────────────────────────────────────────────── */
 .ltr-input { direction: ltr; text-align: left; }
+
+/* ── Sticky table header ─────────────────────────────────────────────── */
+.table-wrapper { overflow-x: auto; max-height: calc(100vh - 240px); overflow-y: auto; }
+.table-wrapper thead th { position: sticky; top: 0; z-index: 2; background-color: #212529; }
 
 /* ── Cards ───────────────────────────────────────────────────────────── */
 .card { border-radius: 12px; }
