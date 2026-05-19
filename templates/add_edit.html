@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{% if link %}עריכת קישור{% else %}הוספת קישור{% endif %} — Link Tracker{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+          <i class="bi bi-{% if link %}pencil{% else %}plus-circle{% endif %}"></i>
+          {% if link %}עריכת קישור #{{ link.id }}{% else %}הוספת קישור חדש{% endif %}
+        </h5>
+      </div>
+      <div class="card-body p-4">
+
+        {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="{% if link %}/edit/{{ link.id }}{% else %}/add{% endif %}">
+
+          {% if not link %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">עובד</label>
+            <select name="owner_user_id" class="form-select">
+              {% for u in users %}
+              <option value="{{ u.id }}"
+                {% if u.id == user.id %}selected{% endif %}>
+                {{ u.name }} — {{ u.email }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-globe text-primary"></i>
+              כתובת עמוד הנחיתה (URL המאמר)
+            </label>
+            <input type="url" name="page_url" class="form-control ltr-input"
+                   placeholder="https://example.com/article"
+                   value="{{ link.page_url if link else '' }}" required>
+            <div class="form-text">העמוד שבו הקישור אמור להופיע</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-fonts text-success"></i>
+              אנקור טקסט (הטקסט של הקישור)
+            </label>
+            <input type="text" name="expected_anchor" class="form-control"
+                   placeholder="לדוגמה: קידום אתרים"
+                   value="{{ link.expected_anchor if link else '' }}" required>
+            <div class="form-text">הטקסט המדויק שמופיע על הקישור בעמוד — תלוי רישיות</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-link text-warning"></i>
+              כתובת היעד של הקישור (URL)
+            </label>
+            <input type="url" name="expected_link_url" class="form-control ltr-input"
+                   placeholder="https://target-site.com/page"
+                   value="{{ link.expected_link_url if link else '' }}" required>
+            <div class="form-text">הכתובת שאליה הקישור אמור להצביע</div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">הערות (אופציונלי)</label>
+            <textarea name="notes" class="form-control" rows="2"
+                      placeholder="הערות פנימיות...">{{ link.notes if link else '' }}</textarea>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="bi bi-check-lg"></i>
+              {% if link %}שמור שינויים{% else %}הוספה{% endif %}
+            </button>
+            <a href="/" class="btn btn-outline-secondary">ביטול</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

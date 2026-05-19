@@ -1,0 +1,29 @@
+/* ── General ─────────────────────────────────────────────────────────── */
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; }
+
+/* ── Login page ──────────────────────────────────────────────────────── */
+.login-bg { background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); }
+.login-card { width: 420px; max-width: 95vw; border-radius: 16px; border: none; }
+.login-icon { font-size: 2.5rem; }
+
+/* ── Navbar ──────────────────────────────────────────────────────────── */
+.navbar { box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+
+/* ── Table ───────────────────────────────────────────────────────────── */
+#linksTable thead th { font-size: .82rem; letter-spacing: .02em; white-space: nowrap; }
+#linksTable tbody td { font-size: .88rem; }
+.url-cell { color: #0d6efd; font-size: .8rem; max-width: 200px; }
+.url-cell:hover { text-decoration: underline; }
+
+/* ── Status icons ────────────────────────────────────────────────────── */
+.bi-check-circle-fill { font-size: 1.1rem; }
+.bi-x-circle-fill     { font-size: 1.1rem; }
+
+/* ── LTR inputs (URLs) ───────────────────────────────────────────────── */
+.ltr-input { direction: ltr; text-align: left; }
+
+/* ── Cards ───────────────────────────────────────────────────────────── */
+.card { border-radius: 12px; }
+
+/* ── Filters bar ─────────────────────────────────────────────────────── */
+.bg-light.card { border-radius: 10px; }

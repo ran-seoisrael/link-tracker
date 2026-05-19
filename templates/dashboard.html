@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% block title %}דשבורד — Link Tracker{% endblock %}
+
+{% block content %}
+
+{# ── Macro must be defined before use ─────────────────────────────────── #}
+{% macro check_cell(val) %}
+  <td class="text-center">
+    {% if val is none %}
+      <span class="text-muted">—</span>
+    {% elif val %}
+      <i class="bi bi-check-circle-fill text-success"></i>
+    {% else %}
+      <i class="bi bi-x-circle-fill text-danger"></i>
+    {% endif %}
+  </td>
+{% endmacro %}
+
+{# ── Top bar ──────────────────────────────────────────────────────────── #}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <h4 class="mb-0 fw-bold">
+    <i class="bi bi-table text-primary"></i>
+    ניהול קישורים
+    <span class="badge bg-secondary fs-6 ms-1">{{ links|length }}</span>
+  </h4>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="/add" class="btn btn-primary">
+      <i class="bi bi-plus-lg"></i> הוספת קישור
+    </a>
+    <form method="post" action="/check-all" class="d-inline">
+      <button type="submit" class="btn btn-warning text-dark">
+        <i class="bi bi-arrow-repeat"></i> בדיקת הכל
+      </button>
+    </form>
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="bi bi-download"></i> ייצוא
+      </button>
+      <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="/export/excel">
+          <i class="bi bi-file-earmark-excel text-success"></i> Excel</a></li>
+        <li><a class="dropdown-item" href="/export/csv">
+          <i class="bi bi-filetype-csv text-secondary"></i> CSV</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+{# ── Filters ──────────────────────────────────────────────────────────── #}
+<div class="card mb-3 border-0 bg-light">
+  <div class="card-body py-2 d-flex flex-wrap gap-3 align-items-center">
+    <div class="d-flex align-items-center gap-2">
+      <label class="form-label mb-0 fw-semibold small">עובד:</label>
+      <select id="filterUser" class="form-select form-select-sm" style="width:150px">
+        <option value="">הכל</option>
+        {% for u in users %}
+        <option value="{{ u.id }}">{{ u.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <label class="form-label mb-0 fw-semibold small">סטטוס:</label>
+      <select id="filterStatus" class="form-select form-select-sm" style="width:150px">
+        <option value="">הכל</option>
+        <option value="ok">תקין בלבד</option>
+        <option value="error">עם שגיאות</option>
+        <option value="unchecked">לא נבדק</option>
+      </select>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <label class="form-label mb-0 fw-semibold small">חיפוש:</label>
+      <input id="searchInput" type="text" class="form-control form-control-sm"
+             placeholder="כתובת / אנקור..." style="width:220px">
+    </div>
+    <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">
+      <i class="bi bi-x-circle"></i> נקה
+    </button>
+    <span id="visibleCount" class="text-muted small me-auto"></span>
+  </div>
+</div>
+
+{% if request.query_params.get('checking') %}
+<div class="alert alert-info d-flex align-items-center gap-2" id="checkingAlert">
+  <div class="spinner-border spinner-border-sm" role="status"></div>
+  בדיקה רצה ברקע — הדף יתרענן אוטומטית עוד כמה שניות.
+  <button type="button" class="btn-close ms-auto"
+          onclick="this.parentElement.remove()"></button>
+</div>
+{% endif %}
+
+{# ── Table ─────────────────────────────────────────────────────────────── #}
+<div class="table-responsive">
+  <table class="table table-hover align-middle" id="linksTable">
+    <thead class="table-dark">
+      <tr>
+        <th style="width:40px">#</th>
+        <th>עובד</th>
+        <th>עמוד נחיתה</th>
+        <th>אנקור טקסט</th>
+        <th>כתובת קישור</th>
+        <th class="text-center" title="HTTP 200">200</th>
+        <th class="text-center" title="פתוח לסריקה (robots.txt)">סריקה</th>
+        <th class="text-center" title="פתוח לאינדוקס (meta robots)">אינדוקס</th>
+        <th class="text-center" title="קנוניקל מצביע לעמוד עצמו">קנוניקל</th>
+        <th class="text-center" title="אנקור טקסט נמצא ב-body">אנקור</th>
+        <th class="text-center" title="כתובת הקישור תואמת">URL</th>
+        <th>נבדק לאחרונה</th>
+        <th>פעולות</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for l in links %}
+    {% set row_status = "unchecked" if l.last_checked is none else ("error" if l.check_errors else "ok") %}
+    <tr class="link-row"
+        data-user="{{ l.user_id }}"
+        data-page="{{ l.page_url|lower }}"
+        data-anchor="{{ l.expected_anchor|lower }}"
+        data-status="{{ row_status }}">
+
+      <td class="text-muted small">{{ l.id }}</td>
+
+      <td>
+        <span class="badge bg-primary-subtle text-primary-emphasis">
+          {{ l.user_name }}
+        </span>
+      </td>
+
+      <td style="max-width:200px">
+        <a href="{{ l.page_url }}" target="_blank"
+           class="url-cell text-truncate d-block" title="{{ l.page_url }}">
+          {{ l.page_url }}
+        </a>
+      </td>
+
+      <td style="max-width:160px">
+        <span class="text-truncate d-block" title="{{ l.expected_anchor }}">
+          {{ l.expected_anchor }}
+        </span>
+      </td>
+
+      <td style="max-width:180px">
+        <a href="{{ l.expected_link_url }}" target="_blank"
+           class="url-cell text-truncate d-block" title="{{ l.expected_link_url }}">
+          {{ l.expected_link_url }}
+        </a>
+      </td>
+
+      {{ check_cell(l.check_status_200) }}
+      {{ check_cell(l.check_crawlable) }}
+      {{ check_cell(l.check_indexable) }}
+      {{ check_cell(l.check_canonical) }}
+      {{ check_cell(l.check_anchor_found) }}
+      {{ check_cell(l.check_url_match) }}
+
+      <td class="small text-nowrap">
+        {% if l.last_checked %}
+          <span class="text-muted">{{ l.last_checked[:16] }}</span>
+          {% if l.check_errors %}
+            <button class="btn btn-sm p-0 ms-1 text-danger errors-btn"
+                    data-errors="{{ l.check_errors }}">
+              <i class="bi bi-exclamation-circle-fill"
+                 title="הצג שגיאות"></i>
+            </button>
+          {% endif %}
+        {% else %}
+          <span class="text-muted fst-italic">לא נבדק</span>
+        {% endif %}
+      </td>
+
+      <td class="text-nowrap">
+        <form method="post" action="/check/{{ l.id }}" class="d-inline">
+          <button type="submit" class="btn btn-sm btn-outline-primary"
+                  title="בדוק עכשיו">
+            <i class="bi bi-arrow-repeat"></i>
+          </button>
+        </form>
+        <a href="/edit/{{ l.id }}"
+           class="btn btn-sm btn-outline-secondary" title="עריכה">
+          <i class="bi bi-pencil"></i>
+        </a>
+        <form method="post" action="/delete/{{ l.id }}" class="d-inline"
+              onsubmit="return confirm('למחוק את הקישור?')">
+          <button type="submit" class="btn btn-sm btn-outline-danger"
+                  title="מחיקה">
+            <i class="bi bi-trash"></i>
+          </button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="13" class="text-center text-muted py-5">
+        אין קישורים עדיין —
+        <a href="/add">הוסף את הראשון</a>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# ── Errors modal ─────────────────────────────────────────────────────── #}
+<div class="modal fade" id="errorsModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title">
+          <i class="bi bi-exclamation-triangle"></i> שגיאות שנמצאו
+        </h5>
+        <button type="button" class="btn-close btn-close-white"
+                data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="errorsModalBody"></div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Errors modal ──────────────────────────────────────────────────────────
+document.querySelectorAll('.errors-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const errors = btn.dataset.errors.trim().split('\n').filter(Boolean);
+    document.getElementById('errorsModalBody').innerHTML =
+      '<ul class="list-group list-group-flush">' +
+      errors.map(e =>
+        `<li class="list-group-item text-danger">
+           <i class="bi bi-dot"></i> ${e}
+         </li>`
+      ).join('') + '</ul>';
+    new bootstrap.Modal(document.getElementById('errorsModal')).show();
+  });
+});
+
+// ── Filters ───────────────────────────────────────────────────────────────
+function applyFilters() {
+  const userVal   = document.getElementById('filterUser').value;
+  const statusVal = document.getElementById('filterStatus').value;
+  const search    = document.getElementById('searchInput').value.toLowerCase();
+  let visible = 0;
+
+  document.querySelectorAll('.link-row').forEach(row => {
+    const show =
+      (!userVal   || row.dataset.user   === userVal)   &&
+      (!statusVal || row.dataset.status === statusVal) &&
+      (!search    || row.dataset.page.includes(search) ||
+                     row.dataset.anchor.includes(search));
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  const total = document.querySelectorAll('.link-row').length;
+  document.getElementById('visibleCount').textContent =
+    visible < total ? `מוצגים ${visible} מתוך ${total}` : '';
+}
+
+function resetFilters() {
+  ['filterUser','filterStatus'].forEach(id =>
+    document.getElementById(id).value = '');
+  document.getElementById('searchInput').value = '';
+  applyFilters();
+}
+
+['filterUser','filterStatus'].forEach(id =>
+  document.getElementById(id).addEventListener('change', applyFilters));
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+// ── Auto-refresh after background check ───────────────────────────────────
+{% if request.query_params.get('checking') %}
+setTimeout(() => location.href = '/', 8000);
+{% endif %}
+</script>
+{% endblock %}
