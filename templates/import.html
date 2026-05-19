@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}ייבוא מ-Excel — Link Tracker{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0">
+          <i class="bi bi-file-earmark-excel"></i> ייבוא קישורים מ-Google Sheets / Excel
+        </h5>
+      </div>
+      <div class="card-body p-4">
+
+        <div class="alert alert-info small mb-4">
+          <strong>מה הקובץ צריך להכיל:</strong><br>
+          עמודה <strong>B</strong> — שם עובד &nbsp;|&nbsp;
+          עמודה <strong>E</strong> — כתובת עמוד נחיתה &nbsp;|&nbsp;
+          עמודה <strong>F</strong> — כתובת קישור &nbsp;|&nbsp;
+          עמודה <strong>G</strong> — אנקור טקסט<br>
+          <span class="text-muted">שורה 1 מתייחסת כשורת כותרת ומדולגת אוטומטית.</span>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+
+        {% if result %}
+        <div class="alert {% if result.imported > 0 %}alert-success{% else %}alert-warning{% endif %}">
+          <strong>סיום ייבוא:</strong><br>
+          ✅ יובאו בהצלחה: <strong>{{ result.imported }}</strong> שורות<br>
+          ⏭ דולגו: {{ result.skipped }} שורות (ריקות או שגויות)
+          {% if result.errors %}
+          <hr>
+          <details>
+            <summary class="text-danger">{{ result.errors|length }} שגיאות — לחץ לפרטים</summary>
+            <ul class="mt-2 small">
+              {% for e in result.errors %}
+              <li>{{ e }}</li>
+              {% endfor %}
+            </ul>
+          </details>
+          {% endif %}
+        </div>
+        {% if result.imported > 0 %}
+        <a href="/" class="btn btn-primary">עבור לדשבורד</a>
+        {% endif %}
+        <hr>
+        {% endif %}
+
+        <form method="post" action="/import" enctype="multipart/form-data">
+          <div class="mb-4">
+            <label class="form-label fw-semibold">בחר קובץ Excel (.xlsx)</label>
+            <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
+            <div class="form-text">
+              ייצא מ-Google Sheets דרך:
+              <strong>File → Download → Microsoft Excel (.xlsx)</strong>
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success px-4">
+              <i class="bi bi-upload"></i> ייבא
+            </button>
+            <a href="/" class="btn btn-outline-secondary">ביטול</a>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

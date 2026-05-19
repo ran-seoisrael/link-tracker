@@ -4,7 +4,7 @@ import os
 from typing import Optional
 
 import openpyxl
-from fastapi import BackgroundTasks, FastAPI, Form, Request, status
+from fastapi import BackgroundTasks, FastAPI, File, Form, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -356,3 +356,98 @@ def change_password(
             (auth.hash_password(new_password), user["id"]),
         )
     return templates.TemplateResponse("change_password.html", {**ctx, "error": "", "success": True})
+
+
+# ── Import from Excel ─────────────────────────────────────────────────────
+
+@app.get("/import", response_class=HTMLResponse)
+def import_page(request: Request):
+    user = require_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+    return templates.TemplateResponse("import.html", {
+        "request": request, "user": user,
+        "result": None, "error": "",
+    })
+
+
+@app.post("/import")
+async def import_excel(
+    request: Request,
+    file: UploadFile = File(...),
+    skip_empty: bool = Form(True),
+):
+    user = require_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    ctx = {"request": request, "user": user}
+
+    if not file.filename.endswith((".xlsx", ".xls")):
+        return templates.TemplateResponse("import.html", {
+            **ctx, "result": None,
+            "error": "יש להעלות קובץ Excel (.xlsx בלבד)",
+        })
+
+    contents = await file.read()
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(contents), read_only=True, data_only=True)
+        ws = wb.active
+    except Exception as exc:
+        return templates.TemplateResponse("import.html", {
+            **ctx, "result": None,
+            "error": f"שגיאה בפתיחת הקובץ: {exc}",
+        })
+
+    imported = 0
+    skipped = 0
+    errors = []
+
+    # col index (0-based): B=1, C=2, D=3, E=4, F=5, G=6
+    for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        def cell(idx):
+            try:
+                v = row[idx]
+                return str(v).strip() if v is not None else ""
+            except IndexError:
+                return ""
+
+        employee_name = cell(1)   # B
+        client_name   = cell(2)   # C
+        client_domain = cell(3)   # D
+        page_url      = cell(4)   # E
+        link_url      = cell(5)   # F
+        anchor        = cell(6)   # G
+
+        # skip rows missing the three required fields
+        if not page_url or not link_url or not anchor:
+            skipped += 1
+            continue
+
+        # basic URL validation
+        if not page_url.startswith("http"):
+            errors.append(f"שורה {i}: כתובת עמוד לא תקינה — {page_url[:60]}")
+            skipped += 1
+            continue
+
+        notes_parts = []
+        if client_name:
+            notes_parts.append(f"לקוח: {client_name}")
+        if client_domain:
+            notes_parts.append(f"דומיין: {client_domain}")
+        if employee_name:
+            notes_parts.append(f"עובד מקורי: {employee_name}")
+        notes = " | ".join(notes_parts)
+
+        try:
+            db.create_link(user["id"], page_url, link_url, anchor, notes)
+            imported += 1
+        except Exception as exc:
+            errors.append(f"שורה {i}: {exc}")
+            skipped += 1
+
+    return templates.TemplateResponse("import.html", {
+        **ctx,
+        "result": {"imported": imported, "skipped": skipped, "errors": errors},
+        "error": "",
+    })
