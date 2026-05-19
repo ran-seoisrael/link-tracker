@@ -1,6 +1,5 @@
 import re
-from urllib.parse import urljoin, urlparse
-from urllib.robotparser import RobotFileParser
+from urllib.parse import urljoin, unquote
 
 import requests
 from bs4 import BeautifulSoup
@@ -15,8 +14,9 @@ TIMEOUT = 15
 
 
 def _normalize(url: str) -> str:
-    """Strip trailing slash for comparison."""
-    return url.strip().rstrip("/")
+    """Decode percent-encoding and strip trailing slash for comparison.
+    Handles Hebrew URLs where %D7%94 and %d7%94 represent the same character."""
+    return unquote(url.strip().rstrip("/"))
 
 
 def check_link(page_url: str, expected_link_url: str, expected_anchor: str) -> dict:
@@ -42,25 +42,20 @@ def check_link(page_url: str, expected_link_url: str, expected_anchor: str) -> d
         result["errors"].append(f"קוד HTTP: {resp.status_code} (צפוי 200)")
         return result
 
-    # ── 2. robots.txt ────────────────────────────────────────────────────
-    parsed = urlparse(page_url)
-    robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
-    rp = RobotFileParser()
-    rp.set_url(robots_url)
-    try:
-        rp.read()
-        result["crawlable"] = rp.can_fetch("Googlebot", page_url)
-    except Exception:
-        result["crawlable"] = True  # can't read robots.txt → assume allowed
-
-    if not result["crawlable"]:
-        result["errors"].append("העמוד חסום ל-Googlebot ב-robots.txt")
-
-    # ── 3. Parse HTML ────────────────────────────────────────────────────
+    # ── 2. Parse HTML ────────────────────────────────────────────────────
     soup = BeautifulSoup(resp.text, "lxml")
 
-    # noindex meta
+    # ── 3. meta robots — follow (סריקה) ──────────────────────────────────
     meta_robots = soup.find("meta", attrs={"name": re.compile(r"^robots$", re.I)})
+    if meta_robots:
+        content = meta_robots.get("content", "").lower()
+        result["crawlable"] = "nofollow" not in content
+        if not result["crawlable"]:
+            result["errors"].append("העמוד מסומן nofollow (meta robots)")
+    else:
+        result["crawlable"] = True  # no tag = default index,follow
+
+    # ── 4. meta robots — index (אינדוקס) ─────────────────────────────────
     if meta_robots:
         content = meta_robots.get("content", "").lower()
         result["indexable"] = "noindex" not in content
@@ -69,10 +64,11 @@ def check_link(page_url: str, expected_link_url: str, expected_anchor: str) -> d
     else:
         result["indexable"] = True
 
-    # canonical
+    # ── 5. Canonical ─────────────────────────────────────────────────────
     canonical_tag = soup.find("link", attrs={"rel": "canonical"})
     if canonical_tag:
         canonical_href = canonical_tag.get("href", "").strip()
+        # Decode percent-encoding on both sides so %D7%94 == %d7%94
         result["canonical_self"] = _normalize(canonical_href) == _normalize(page_url)
         if not result["canonical_self"]:
             result["errors"].append(f"קנוניקל מצביע על: {canonical_href}")
@@ -80,7 +76,7 @@ def check_link(page_url: str, expected_link_url: str, expected_anchor: str) -> d
         result["canonical_self"] = False
         result["errors"].append("אין תגית canonical בעמוד")
 
-    # ── 4. Find link by anchor text inside <body> ────────────────────────
+    # ── 6. Find link by anchor text inside <body> ─────────────────────────
     body = soup.find("body")
     if not body:
         result["anchor_found"] = False
@@ -102,7 +98,6 @@ def check_link(page_url: str, expected_link_url: str, expected_anchor: str) -> d
 
     result["anchor_found"] = True
 
-    # normalize href to absolute
     href_abs = urljoin(page_url, found_link["href"])
     result["url_match"] = _normalize(href_abs) == _normalize(expected_link_url)
     if not result["url_match"]:

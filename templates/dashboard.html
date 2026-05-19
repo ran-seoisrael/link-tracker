@@ -68,6 +68,12 @@
       </select>
     </div>
     <div class="d-flex align-items-center gap-2">
+      <label class="form-label mb-0 fw-semibold small">דומיין קישור:</label>
+      <select id="filterDomain" class="form-select form-select-sm" style="width:180px">
+        <option value="">הכל</option>
+      </select>
+    </div>
+    <div class="d-flex align-items-center gap-2">
       <label class="form-label mb-0 fw-semibold small">חיפוש:</label>
       <input id="searchInput" type="text" class="form-control form-control-sm"
              placeholder="כתובת / אנקור..." style="width:220px">
@@ -115,6 +121,7 @@
         data-user="{{ l.user_id }}"
         data-page="{{ l.page_url|lower }}"
         data-anchor="{{ l.expected_anchor|lower }}"
+        data-linkurl="{{ l.expected_link_url|lower }}"
         data-status="{{ row_status }}">
 
       <td class="text-muted small">{{ l.id }}</td>
@@ -234,17 +241,43 @@ document.querySelectorAll('.errors-btn').forEach(btn => {
   });
 });
 
+// ── Domain dropdown — build from link URLs ────────────────────────────────
+function extractDomain(url) {
+  try {
+    const h = new URL(url).hostname.replace(/^www\./, '');
+    return h;
+  } catch { return ''; }
+}
+
+(function buildDomainDropdown() {
+  const seen = new Set();
+  document.querySelectorAll('.link-row').forEach(row => {
+    const d = extractDomain(row.dataset.linkurl || '');
+    if (d) seen.add(d);
+  });
+  const sel = document.getElementById('filterDomain');
+  [...seen].sort().forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = d;
+    sel.appendChild(opt);
+  });
+})();
+
 // ── Filters ───────────────────────────────────────────────────────────────
 function applyFilters() {
   const userVal   = document.getElementById('filterUser').value;
   const statusVal = document.getElementById('filterStatus').value;
+  const domainVal = document.getElementById('filterDomain').value.toLowerCase();
   const search    = document.getElementById('searchInput').value.toLowerCase();
   let visible = 0;
 
   document.querySelectorAll('.link-row').forEach(row => {
+    const rowDomain = extractDomain(row.dataset.linkurl || '');
     const show =
       (!userVal   || row.dataset.user   === userVal)   &&
       (!statusVal || row.dataset.status === statusVal) &&
+      (!domainVal || rowDomain === domainVal)           &&
       (!search    || row.dataset.page.includes(search) ||
                      row.dataset.anchor.includes(search));
     row.style.display = show ? '' : 'none';
@@ -257,13 +290,13 @@ function applyFilters() {
 }
 
 function resetFilters() {
-  ['filterUser','filterStatus'].forEach(id =>
+  ['filterUser','filterStatus','filterDomain'].forEach(id =>
     document.getElementById(id).value = '');
   document.getElementById('searchInput').value = '';
   applyFilters();
 }
 
-['filterUser','filterStatus'].forEach(id =>
+['filterUser','filterStatus','filterDomain'].forEach(id =>
   document.getElementById(id).addEventListener('change', applyFilters));
 document.getElementById('searchInput').addEventListener('input', applyFilters);
 
