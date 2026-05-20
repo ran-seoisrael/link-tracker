@@ -20,11 +20,21 @@
            onerror="this.style.display='none'">
       <span class="d-none d-sm-inline">Link Tracker</span>
     </a>
-    <div class="d-flex align-items-center gap-3">
-      <span class="text-white-50 small">שלום, {{ user.name }}</span>
-      <a href="/import" class="btn btn-sm btn-outline-light"><i class="bi bi-upload"></i> ייבוא</a>
-      <a href="/change-password" class="btn btn-sm btn-outline-light">סיסמה</a>
-      <a href="/logout" class="btn btn-sm btn-outline-light">יציאה</a>
+    <div class="d-flex align-items-center">
+      <div class="dropdown">
+        <button class="btn btn-sm btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
+          <i class="bi bi-person-circle"></i> {{ user.name }}
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="/change-password">
+            <i class="bi bi-key text-secondary"></i> שינוי סיסמה
+          </a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item text-danger" href="/logout">
+            <i class="bi bi-box-arrow-right"></i> יציאה מהמערכת
+          </a></li>
+        </ul>
+      </div>
     </div>
   </div>
 </nav>
